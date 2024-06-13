@@ -23,12 +23,20 @@ const main = async () => {
     if (network.config.chainId === 11155111 && process.env.ETHERSCAN_API_KEY) {
         //Should wait for the block to be mined and 6 transaction confirmation to be appended
         //Safer this way
+        console.log("Waiting for tx confirmations");
         await simpleStorage.deploymentTransaction().wait(6);
         await verify(simpleStorage.target, []);
     }
 
-    //Retrieving the currentFavNumber from SimpleStorage.sol
-    const curretnValue = await simpleStorage.retrieve();
+    //Retrieving the favNumber from SimpleStorage.sol
+    const currentValue = await simpleStorage.retrieve();
+    console.log(`Current value is ${currentValue}`);
+
+    //Updating the favNumber
+    const txRes = await simpleStorage.store("69");
+    await txRes.wait(1);
+    const updateValue = await simpleStorage.retrieve();
+    console.log(`Updated value is ${updateValue}`);
 };
 
 const verify = async (contractAddress, args) => {
@@ -43,7 +51,7 @@ const verify = async (contractAddress, args) => {
     } catch (error) {
         //if contract is already verified then handle it seperately
         //else console log the error message
-        if (error.message.toLowerCase().includes("already verified"))
+        if (error.message.toLowerCase().includes("has already been verified"))
             console.log("Contract already verified");
         else console.log(`Error in verifyign ${error}`);
     }
