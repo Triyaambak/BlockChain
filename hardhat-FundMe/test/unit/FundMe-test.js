@@ -41,8 +41,9 @@ describe("FundMe", async () => {
         //This test is to check if the require min eth is working
         it("fails if you do not have min Eth", async () => {
             //.to.be.reverted specifies that this test is likely to fail and hence our tx should not terminate
-            await expect(fundMe.fund()).to.be.revertedWith(
-                "Not Enough Ethereum"
+            await expect(fundMe.fund()).to.be.revertedWithCustomError(
+                fundMe,
+                "FundMe__NotEnoughEth"
             );
         });
         //This test is to check if the map data structure is getting updated
@@ -67,6 +68,7 @@ describe("FundMe", async () => {
             await fundMe.fund({ value: sendValue });
         });
 
+        //To check the withdrawal and funding from a single account
         it("withdraw ETH from a single funder", async () => {
             //contract.provider.getBalance is used to get the ETH amount stored in that contract wrt to address
             const startingFundMeBalance = await ethers.provider.getBalance(
@@ -103,6 +105,77 @@ describe("FundMe", async () => {
                 ).toString(),
                 endingDeployerBalance.toString()
             );
+        });
+
+        //To check the withdrawal and funding from multiple accounts
+        it("allows us to withdraw with multiple funders", async () => {
+            //Get all accounts present in a network
+            const accounts = await ethers.getSigners();
+
+            //Funding from multiple accounts
+            for (let i = 1; i < 6; i++) {
+                //Initally our fundMe is connected to deployer acc , so the contract is being funded by the deployer
+                //We can change that , by using fundMe.connect(account)
+                //With this the contract will be funded by that account
+                const fundMeConnectedAcc = await fundMe.connect(accounts[i]);
+                await fundMeConnectedAcc.fund({ value: sendValue });
+            }
+
+            //This part is same as with funding from sinlge account
+            const startingFundMeBalance = await ethers.provider.getBalance(
+                fundMe.target
+            );
+            const startingDeployerBalance = await ethers.provider.getBalance(
+                deployer
+            );
+
+            const txRes = await fundMe.withdraw();
+            const txReciept = await txRes.wait(1);
+
+            const { gasUsed, gasPrice } = txReciept;
+            const gasCost = gasUsed * gasPrice;
+
+            const endingFundMeBalance = await ethers.provider.getBalance(
+                fundMe.target
+            );
+            const endingDeployerBalance = await ethers.provider.getBalance(
+                deployer
+            );
+
+            assert.equal(endingFundMeBalance, 0);
+            assert.equal(
+                (
+                    startingFundMeBalance +
+                    startingDeployerBalance -
+                    gasCost
+                ).toString(),
+                endingDeployerBalance.toString()
+            );
+
+            //We need to make sure funders array is reset properly
+            await expect(fundMe.getFunder()).to.be.reverted;
+
+            //Make sure that all accounts have 0 balance in them
+            for (let i = 1; i < 6; i++)
+                assert.equal(
+                    await fundMe.addressToAmountFunded(accounts[i].address),
+                    0
+                );
+        });
+
+        //To check if only the owner is able to withdraw the funds
+        it("only allows the owner to deploy", async () => {
+            const accounts = await ethers.getSigners();
+            //The attacker can be any account other than the deployer
+            const attacker = accounts[1];
+
+            //Connecting the contract to the attacker
+            const attackConnectedContract = await fundMe.connect(attacker);
+
+            //The withdraw by the attacker should fail from the custom error
+            await expect(
+                attackConnectedContract.withdraw()
+            ).to.be.revertedWithCustomError(fundMe, "FundMe__NotOwner");
         });
     });
 });
