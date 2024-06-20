@@ -1,7 +1,7 @@
 {
   "name": "hardhat-FundMe",
+  "author": "Triyaambak S",
   "version": "1.0.0",
-  "main": "index.js",
   "license": "MIT",
   "devDependencies": {
     "@chainlink/contracts": "^1.1.1",
@@ -24,5 +24,10 @@
     "solidity-coverage": "^0.8.0",
     "typechain": "^8.3.0"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "scripts": {
+    "test" : "yarn hardhat test",
+    "test:staging" : "yarn hardhat test --network sepolia",
+    "coverage" : "yarn hardhat coverage"
+  }
 }
